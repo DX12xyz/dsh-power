@@ -41,38 +41,53 @@ DSH 电源把它变成有语义、可协调、可恢复的操作：人类在侧�
 
 ## 安装
 
-### 最小命令
-
 要求：本机验证过的运行时为 DSH 0.2.1-rc.5（Web，Windows）；Web + Desktop（Windows）版本均可。
 
-首次安装可用插件管理器：
+仓库根目录就是插件包本身（`package.json`、`cordis.patch.yml`、`index.js` / `client.js` / `host/`、`locale/`、`icon.svg` 都在根目录），仓库不随附预打包的 `.tgz`。任选一种方式安装，下文以 Web profile（`web`）为例。
 
-```text
-plugin_manager install_bundle target=<本包目录或 .tgz 的绝对路径>
-```
+### 方式一：插件页安装（推荐，人类入口）
 
-推荐直接使用 CLI（首次安装适用）：
+1. 打开 DSH 插件页 →「安装插件」；
+2. 安装源填仓库地址 `https://github.com/DX12xyz/dsh-power`，或 git 简写 `github:DX12xyz/dsh-power`；
+3. 等待安装完成，按提示**重启 DSH**（Host 半身生效；Client 半身刷新页面即可）。
+
+### 方式二：命令行从 git 源安装
 
 ```powershell
-dsh plugin --profile web add "file:<绝对路径>/local-dsh-power-1.8.2.tgz"
+dsh plugin --profile web add github:DX12xyz/dsh-power
 ```
 
-### 从仓库下载部署
+### 方式三：本地目录安装（改代码 / 离线可用）
 
-本仓库的 `releases/` 目录（GitHub 上对应 Releases 页面）直接提供该版本的 `.tgz`，无需本地构建：
+把仓库的 zip/tar 解压到本机，再把解压出来的仓库根目录装进 profile：
 
-1. 下载 `local-dsh-power-1.8.2.tgz`；
-2. 安装：
+```powershell
+dsh plugin --profile web add "link:<仓库根目录绝对路径>"
+```
 
-   ```powershell
-   dsh plugin --profile web add "file:<下载目录>\local-dsh-power-1.8.2.tgz"
-   ```
+`link:` 装的是活目录：改完代码重启 DSH（Host 半身）或刷新页面（Client 半身）即可生效。
 
-3. 重启 DSH（Host 半身生效；Client 半身刷新页面即可）。
+### 方式四：离线打包 tgz
+
+在仓库根目录打包，再安装产出的 tgz：
+
+```powershell
+cd <仓库根目录>
+npm pack
+# 产出 local-dsh-power-1.8.2.tgz
+dsh plugin --profile web add "file:<仓库根目录>/local-dsh-power-1.8.2.tgz"
+```
+
+### 卸载
+
+```powershell
+dsh plugin --profile web remove @local/dsh-power
+```
+
+卸载后 `$DSH_HOME/.dsh-restart/` 的残留见「关键注意事项」。
 
 ### 关键注意事项
 
-- 桌面版把 `--profile web` 换成对应的 profile 名。
 - 安装后**重启 DSH**：Host 半身的改动必须重启才生效；Client 半身会热更新。
 - 卸载后 `$DSH_HOME/.dsh-restart/`（checkpoint、status.json、运行设置）会保留；确认不再需要时手动清理。
 
@@ -88,7 +103,7 @@ dsh plugin --profile web add "file:<绝对路径>/local-dsh-power-1.8.2.tgz"
 ### 版本与兼容性
 
 - 当前版本 **1.8.2**：强制重启遵循「先审批，再校验并消费保险」，审批被拒时保险保留；没有保险时返回「先上保险」的引导错误，不会重启。无 API、配置字段变更。
-- 不发布到 npm；通过 `.tgz` 或本地目录安装。
+- 不发布到 npm；通过 git 仓库、本地目录或自行 `npm pack` 的 tgz 安装。
 - 无 npm 运行时依赖；`client.js` 的 React 由 DSH 网页版客户端运行时注入。
 - 平台支持 **Web + Desktop（Windows）**；桌面版额外使用 `relauncher-desktop.mjs` 与 `quit-desktop.mjs` 处理 Electron 外壳。
 - 逃生舱是另一个独立包（`@local/dsh-escape-pod`），本包不依赖它、也不替它写 profile 行；关机联动为可选能力，见「关闭 DSH 与逃生舱联动」。
