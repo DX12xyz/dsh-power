@@ -1,0 +1,140 @@
+# Host half of the DSH power plugin (@local/dsh-power, v1.8.2): one
+# package, one component — the restart/shutdown component described in the three
+# modules below. The escape pod that used to live in this package is now the
+# separate `@local/dsh-escape-pod` plugin; this row only links to its optional
+# `escapePod` service when a human asks for it at shutdown time.
+#   1. restart interface — scheduling, mode merge/upgrade, platform-aware
+#      relaunch, mode-aware boot delivery, and the browser-facing
+#      `/api/dsh-restart/*` routes;
+#   2. AI restart — five tools and the `restart-dsh` skill:
+#        restart_dsh_blocking_wait_safe    wait for every other running AI, then restart;
+#        restart_dsh_roll_call_caution
+#                                     broadcast to running AIs outside safe state and
+#                                     wait until every active AI enters safe state
+#                                     (bounded by rollCallWaitMs; see config below);
+#        restart_dsh_force_dangerous  approval first, then check/consume the
+#                                     safeguard, then interrupt every running AI
+#                                     outside safe state immediately and restart
+#                                     unstoppably: a detached reaper force-terminates
+#                                     the Host (taskkill /F if needed) without waiting
+#                                     for graceful teardown; desktop ends the Electron
+#                                     shell and reopens the app;
+#        restart_dsh_force_safeguard  arm the force tool for exactly the next tool
+#                                     call (any other tool re-locks it);
+#        restart_dsh_status           read-only status: phase, running AIs, pending
+#                                     restart/shutdown, last restart result.
+#      Safe state: an AI that used all-wait or roll-call, or that initiated the
+#      force restart that actually ran, belongs to safe state; only AIs interrupted
+#      by a force restart (without having entered safe state beforehand) do not.
+#      Permissions: all-wait and roll-call are frictionless for workspace-write and
+#      above; while a roll-call restart is pending they are temporarily frictionless
+#      for EVERY permission preset. Force restart and safeguard are frictionless
+#      only in full access (one approval otherwise). The force tool always requests
+#      approval first, then checks and consumes the safeguard; without a safeguard
+#      it never restarts and returns the "arm the safeguard first" guidance.
+#   3. human entry — web AND Desktop share the same sidebar DOM: the client half
+#      appends a「DSH电源」icon button into the footer's `div[class*="_settingsArea"]`
+#      (with a `sidebar.footer.action` fallback). Its menu has only 重启 / 关闭;
+#      each opens a dialog with a mode dropdown (等待 default / 中断 / 强制)
+#      and an optional human reason that is carried into the post-restart notice.
+#      等待 is cancellable, 中断 needs a second confirmation, and 强制 requires
+#      holding the confirm button for 5 seconds with an accelerating flash.
+#      The 5-second hold only accepts the primary button and is cancelled by
+#      window blur, a hidden page, and pointer cancellation.
+#      Shutdown uses the same three modes but never relaunches: safe waits for
+#      running AIs to finish (bounded by shutdownMaxWaitMs), coordinated broadcasts
+#      a stop request and waits for every active AI to stop, dangerous interrupts
+#      immediately and is unstoppable (detached reaper + forced Host termination).
+#      When the escape pod plugin is installed, every shutdown dialog offers
+#      「同时关闭正在运行的逃生舱」(unchecked by default): the client asks
+#      `GET /api/dsh-restart/pod` first and only shows the checkbox when that
+#      service exists, then sends `closeEscapePod:true` so DSH closes the pod
+#      right before it exits. Restarts never touch the pod.
+#      Human force restart/shutdown do not need the AI safeguard
+#      tool; the 5-second hold is the human confirmation.
+# The Client half is discovered from the package manifest's `dsh.client`
+# section, so a single row is enough.
+#
+# Boot reconciliation and the out-of-process entry (hotfix.5): on startup the
+# Host reconciles what the previous force attempt left behind (reaper spec,
+# marker, relaunch lock) into `lastForceOutcome`; an `error` or `no-marker`
+# outcome raises `hold`, which suspends automatic restart behaviour until an
+# explicit force request or `scripts/restart-cli.mjs unhold` clears it. The Host
+# also writes a single human-readable `status.json` snapshot (bootId, pid,
+# phase, pending, forceDryRun, hold, lastForceOutcome, paths) into the state
+# dir. `scripts/restart-cli.mjs` is an independent zero-dependency Node ESM CLI
+# (status / relaunch / clear-stale / unhold) that works even when the Host is
+# dead. That structure is inspired by hxh230802/dsh-tray-restart (MIT, see
+# THIRD_PARTY_NOTICES.md); no source code was copied.
+#
+# The platform is detected automatically: when the Host runs under
+# `@deepseek-ai/dsh-desktop-host` the restart relaunches the Desktop app;
+# otherwise it relaunches the Host process (web). Desktop shutdown additionally
+# spends `quit-desktop.mjs` before this Host exits: the Electron shell only lets
+# the parent command the Host (no Host→shell quit IPC), so exiting the Host alone
+# would leave the window open with a fatal "backend stopped" dialog; the helper
+# terminates the shell first so the window closes with the backend.
+#
+# Optional config fields (all optional, see index.js normalizeConfig):
+#   graceMs                 quiet period required before the restart fires (default 750)
+#   pollMs                  restart-condition poll interval (default 150)
+#   bootDeliveryDelayMs     delay after boot before AI notifications are delivered (default 1800)
+#   flushTimeoutMs          session flush budget before a normal restart exits (default 3000)
+#   dangerousFlushTimeoutMs session flush budget before a force restart exits (default 1500)
+#   forceKillAfterMs        how long the detached force reaper waits for a graceful
+#                           exit before force-killing the Host with taskkill /F
+#                           (default 2500, clamped to 500..30000)
+#   forceDryRun             rehearse a force restart: write force-dry-run.json and
+#                           return "not executed" without creating a pending
+#                           request, arming the reaper or killing anything
+#                           (default false; troubleshooting switch)
+#   exitWatchdogMs          forced-exit watchdog after the graceful exit request (default 5000)
+#   shutdownMaxWaitMs       maximum wait for running AIs before a safe/coordinated
+#                           shutdown cancels them (default 300000; 0 = unlimited)
+#   shutdownGraceMs         grace period after that cancellation for the AIs to
+#                           settle before the normal flush/exit (default 3000)
+#   unlockTtlMs             validity window of one force-restart safeguard (default 300000)
+#   coordinatedResendMs     minimum gap between roll-call interjections to one AI (default 20000)
+#   coordinatedMaxResends   maximum roll-call interjections to one AI while it keeps running unsafely (default 5)
+#   rollCallWaitMs          how long a roll-call restart waits for every active AI to enter
+#                           safe state before continuing anyway (default 120000; 0 = wait
+#                           forever; clamped to 0..3600000). When the wait expires the restart
+#                           proceeds and the AIs still outside safe state are recorded as
+#                           timed out / interrupted.
+#   dangerousNotifyInterrupted  deliver notices to every interrupted AI after a force restart (default true)
+#   coordinatedNotifyTimedOut   deliver an interruption notice to the AIs whose roll-call
+#                           wait expired, so they learn they may have been interrupted
+#                           instead of only getting a generic resume report (default true)
+#   openBrowserOnRelaunch   web relaunch opens a new browser tab (default false: only the old tab recovers)
+#   desktopRelaunchTimeoutMs  desktop rollback timeout when the app does not restart (default 25000)
+#   testMode                expose self-test routes guarded by the Host/Origin and
+#                           browser-authentication fence (default false)
+#   home                    DSH home override; defaults to the launcher-provided profile context home
+#   launch                  { execPath, args, cwd } override for the web relaunch command
+#
+# hotfix.1 restores the `resumableToolCalls` Host service for OTHER plugins
+# (`ctx.get('resumableToolCalls')`), from the 1.7.4-hotfix.4/5 line: another
+# plugin holds one of its tool calls across the restart and answers it with the
+# real result on the next boot, so the platform never closes a surviving call
+# with its synthetic TOOL_OUTCOME_UNKNOWN. Holds are durable in
+# `$DSH_HOME/.dsh-restart/resumable-holds.json`, restored before any Session
+# resumes, and excluded from the restart checkpoint.
+#
+# The escape pod is a SEPARATE plugin (@local/dsh-escape-pod) that owns the
+# pod's command lifetimes and exposes the `escapePod` Host service. This package
+# never imports it: `GET /api/dsh-restart/pod` reports whether that service is
+# present (`{ ok, available }`), and a human shutdown may pass
+# `closeEscapePod:true` to close the pod right before DSH exits. Without the
+# escape pod plugin the route answers `available:false`, the shutdown dialog
+# omits the checkbox, and a save on the settings page never touches the pod.
+#
+# Tool-call timeout check: the restart tools declare no `timeoutMs`, so
+# `@deepseek-ai/dsh-tool-call-timeout-policy` never arms a deadline for their
+# held-open calls; such a call ends only when the restart fails or the turn is
+# cancelled.
+- insert:
+    - id: dsh-power
+      name: '@local/dsh-power'
+      config:
+        # roll-call wait before continuing anyway; 0 = wait forever
+        rollCallWaitMs: 120000

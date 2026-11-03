@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "DSH Power",
+    "description": "Restart or shut down DSH from the sidebar. A restart can wait for every AI to finish, nudge the others and continue when the wait runs out, or interrupt running AIs immediately. The wait time is set on this page (0 = wait forever). An AI force restart requests approval first, then checks and consumes the force safeguard; without a safeguard it never restarts. A shutdown can optionally close the installed escape pod plugin; the checkbox is hidden when it is not installed."
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "@local/dsh-power",
+  "version": "1.8.2",
+  "private": true,
+  "license": "MIT",
+  "description": "DSH 电源（原 dsh-restart-bundle）：在侧边栏一键重启或关闭 DSH，并附带 AI 重启工具、设置页、启动对账与独立恢复 CLI。重启可以等待所有 AI 完成当前回合、点名催促并在等待时间用尽后继续，或立即中断正在运行的 AI；关闭只退出、不重启。设置页的点名等待时间写入运行设置 settings.json 而不再编辑 profile 补丁，保存不会重新激活插件行。关闭时可选同时关闭已安装的逃生舱插件（服务名 escapePod）：只有在对话框里显式勾选才会在 DSH 退出前关闭它，未安装时该选项不显示。详见 README.md 与 TECHDOC.md。",
+  "type": "module",
+  "scripts": {
+    "test": "node test/session-writer.test.mjs && node test/resumable.test.mjs && node test/checkpoint-holds.test.mjs && node test/force-safeguard.test.mjs"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "host/*.js",
+    "client.js",
+    "relauncher.mjs",
+    "relauncher-desktop.mjs",
+    "quit-desktop.mjs",
+    "force-reaper.mjs",
+    "scripts/*.mjs",
+    "THIRD_PARTY_NOTICES.md",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "README.md",
+    "TECHDOC.md",
+    "HISTVER.md",
+    "HISTVER_legacy.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  }
+}
