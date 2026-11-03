@@ -262,7 +262,7 @@
 | 项 | 事实 |
 |---|---|
 | 包名 / 版本 | `@local/dsh-power` **1.8.2** |
-| 分发方式 | `private` 包，不发布到 npm；通过 `.tgz` 或本地目录安装 |
+| 分发方式 | 不发布到 npm；通过 `.tgz` 或本地目录安装 |
 | 运行时依赖 | 无 npm 运行时依赖；`client.js` 的 React 由 DSH 网页版客户端运行时注入 |
 | 平台 | Web + Desktop（Windows）；桌面版额外用 `relauncher-desktop.mjs` 与 `quit-desktop.mjs` 处理 Electron 外壳 |
 | 安装（插件管理器） | `plugin_manager install_bundle target=<本包目录或 .tgz 的绝对路径>` |

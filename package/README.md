@@ -5,7 +5,7 @@
 [![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2da44e)](./LICENSE)
 
-版本 1.8.2 · MIT · Web + Desktop（Windows）· 私有包（private）
+版本 1.8.2 · MIT · Web + Desktop（Windows）
 
 ---
 
@@ -88,7 +88,7 @@ dsh plugin --profile web add "file:<绝对路径>/local-dsh-power-1.8.2.tgz"
 ### 版本与兼容性
 
 - 当前版本 **1.8.2**：强制重启遵循「先审批，再校验并消费保险」，审批被拒时保险保留；没有保险时返回「先上保险」的引导错误，不会重启。无 API、配置字段变更。
-- 包为 `private`，不发布到 npm；通过 `.tgz` 或本地目录安装。
+- 不发布到 npm；通过 `.tgz` 或本地目录安装。
 - 无 npm 运行时依赖；`client.js` 的 React 由 DSH 网页版客户端运行时注入。
 - 平台支持 **Web + Desktop（Windows）**；桌面版额外使用 `relauncher-desktop.mjs` 与 `quit-desktop.mjs` 处理 Electron 外壳。
 - 逃生舱是另一个独立包（`@local/dsh-escape-pod`），本包不依赖它、也不替它写 profile 行；关机联动为可选能力，见「关闭 DSH 与逃生舱联动」。
